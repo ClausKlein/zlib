@@ -1,10 +1,14 @@
-cmake_minimum_required(VERSION 3.1.2...3.27)
+# CMake 3.21 or later is required for PROJECT_IS_TOP_LEVEL
+cmake_minimum_required(VERSION 3.21...3.30)
 
 project(zlib VERSION 1.3.0.1 LANGUAGES C)
 
-option(BUILD_SHARED_LIBS "Enable to build a shared library(DLL) instead a static one." ON)
-option(BUILD_TESTING "Enable to build the test too." ON)
-option(BUILD_EXAMPLES "Enable to build the examples too." OFF)
+# Where possible, projects should require CMake 3.21 or later and ensure policies CMP0077 and CMP0126 are set to NEW.
+# This will prevent the project from discarding values set by parent projects as non-cache variables.
+# XXX set(BUILD_SHARED_LIBS ON CACHE BOOL "Enable to build a shared library(DLL) instead a static one")
+option(BUILD_SHARED_LIBS "Enable to build a shared library(DLL) instead a static one." ${PROJECT_IS_TOP_LEVEL})
+option(ZLIB_BUILD_TESTING "Enable to build the test too." ${PROJECT_IS_TOP_LEVEL})
+option(ZLIB_BUILD_EXAMPLES "Enable to build the examples too." ${PROJECT_IS_TOP_LEVEL})
 
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH "Installation directory for executables")
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
@@ -25,9 +29,6 @@ check_include_file(stddef.h    HAVE_STDDEF_H)
 # Check to see if we have large file support
 #
 set(CMAKE_REQUIRED_DEFINITIONS -D_LARGEFILE64_SOURCE=1)
-# We add these other definitions here because CheckTypeSize.cmake
-# in CMake 2.4.x does not automatically do so and we want
-# compatibility with CMake 2.4.x.
 if(HAVE_SYS_TYPES_H)
     list(APPEND CMAKE_REQUIRED_DEFINITIONS -DHAVE_SYS_TYPES_H)
 endif()
@@ -185,8 +186,7 @@ endif()
 
 add_library(zlib::zlib ALIAS zlib)
 # Note also that CMake's own FindZLIB.cmake module defines a slightly different
-# imported target named ZLIB::ZLIB (the upper/lowercase differences are
-# meaningful). (Craig Scott)
+# imported target named ZLIB::ZLIB (the upper/lowercase differences are meaningful).
 add_library(ZLIB::ZLIB ALIAS zlib)
 
 
@@ -194,29 +194,31 @@ add_library(ZLIB::ZLIB ALIAS zlib)
 # Example binaries and ctests locatet at test subdir
 # TODO: add_subdirectory(test)
 #============================================================================
-if(BUILD_TESTING)
+if(ZLIB_BUILD_TESTING)
     enable_testing()
 
     add_executable(example test/example.c)
     target_link_libraries(example zlib)
     add_test(example example)
 
-    if(BUILD_EXAMPLES)
-        add_executable(minigzip test/minigzip.c)
-        target_link_libraries(minigzip zlib)
-
-        if(HAVE_OFF64_T)
-            add_executable(example64 test/example.c)
-            target_link_libraries(example64 zlib)
-            set_target_properties(example64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-            add_test(example64 example64)
-
-            add_executable(minigzip64 test/minigzip.c)
-            target_link_libraries(minigzip64 zlib)
-            set_target_properties(minigzip64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-        endif()
+    if(HAVE_OFF64_T)
+        add_executable(example64 test/example.c)
+        target_link_libraries(example64 zlib)
+        set_target_properties(example64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+        add_test(example64 example64)
     endif()
+endif()
 
+
+if(ZLIB_BUILD_EXAMPLES)
+    add_executable(minigzip test/minigzip.c)
+    target_link_libraries(minigzip zlib)
+
+    if(HAVE_OFF64_T)
+        add_executable(minigzip64 test/minigzip.c)
+        target_link_libraries(minigzip64 zlib)
+        set_target_properties(minigzip64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+    endif()
 endif()
 
 
@@ -228,14 +230,22 @@ if(SKIP_INSTALL_ALL)
 endif()
 
 if(NOT SKIP_INSTALL_LIBRARIES)
+    include(CMakePackageConfigHelpers)
+
+    set(ZLIB_INSTALL_CMAKEDIR "${INSTALL_LIB_DIR}/cmake/zlib")
+    write_basic_package_version_file("zlibConfigVersion.cmake" COMPATIBILITY SameMajorVersion)
+
+    install(FILES "${PROJECT_BINARY_DIR}/zlibConfigVersion.cmake"
+        DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
+    )
     install(TARGETS zlib
-        EXPORT ${PROJECT_NAME}Config
+        EXPORT zlibConfig
         RUNTIME DESTINATION "${INSTALL_BIN_DIR}"
         ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
         LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
     )
-    install(EXPORT ${PROJECT_NAME}Config
-        NAMESPACE zlib:: DESTINATION "${INSTALL_LIB_DIR}/cmake/${PROJECT_NAME}"
+    install(EXPORT zlibConfig
+        NAMESPACE zlib:: DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
     )
     target_include_directories(zlib PUBLIC $<INSTALL_INTERFACE:${INSTALL_INC_DIR}>)
 endif()
