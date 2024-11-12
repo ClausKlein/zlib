@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 2.4.4)
+cmake_minimum_required(VERSION 3.25...3.31)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
-project(zlib C)
+project(ZLIB VERSION 1.2.5 LANGUAGES C)
 
 if(NOT DEFINED BUILD_SHARED_LIBS)
     option(BUILD_SHARED_LIBS "Build a shared library form of zlib" ON)
@@ -118,6 +118,9 @@ file(READ ${CMAKE_CURRENT_SOURCE_DIR}/zlib.h _zlib_h_contents)
 string(REGEX REPLACE ".*#define[ \t]+ZLIB_VERSION[ \t]+\"([0-9A-Za-z.]+)\".*"
     "\\1" ZLIB_FULL_VERSION ${_zlib_h_contents})
 
+include(CMakePrintHelpers)
+cmake_print_variables(ZLIB_VERSION ZLIB_FULL_VERSION ZLIB_VERSION_MAJOR)
+
 if(MINGW)
     # This gets us DLL resource information when compiling on MinGW.
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj
@@ -133,7 +136,7 @@ endif(MINGW)
 add_library(zlib ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
 set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
 
-set_target_properties(zlib PROPERTIES SOVERSION 1)
+set_target_properties(zlib PROPERTIES SOVERSION ${ZLIB_VERSION_MAJOR})
 
 if(NOT CYGWIN)
     # This property causes shared libraries on Linux to have the full version
@@ -151,19 +154,19 @@ if(UNIX)
    set_target_properties(zlib PROPERTIES OUTPUT_NAME z)
 elseif(BUILD_SHARED_LIBS AND WIN32)
     # Creates zlib1.dll when building shared library version
-    set_target_properties(zlib PROPERTIES SUFFIX "1.dll")
+    set_target_properties(zlib PROPERTIES SUFFIX "${ZLIB_VERSION_MAJOR}.dll")
 endif()
 
-if(NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL )
+if(NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL)
     install(TARGETS zlib
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib )
+        LIBRARY DESTINATION lib)
 endif()
-if(NOT SKIP_INSTALL_HEADERS AND NOT SKIP_INSTALL_ALL )
+if(NOT SKIP_INSTALL_HEADERS AND NOT SKIP_INSTALL_ALL)
     install(FILES ${ZLIB_PUBLIC_HDRS} DESTINATION include)
 endif()
-if(NOT SKIP_INSTALL_FILES AND NOT SKIP_INSTALL_ALL )
+if(NOT SKIP_INSTALL_FILES AND NOT SKIP_INSTALL_ALL)
     install(FILES zlib.3 DESTINATION share/man/man3)
 endif()
 
@@ -188,3 +191,6 @@ if(HAVE_OFF64_T)
     target_link_libraries(minigzip64 zlib)
     set_target_properties(minigzip64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 endif()
+
+set(CPACK_GENERATOR TGZ)
+include(CPack)
