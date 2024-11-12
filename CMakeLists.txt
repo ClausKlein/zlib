@@ -1,7 +1,12 @@
-cmake_minimum_required(VERSION 3.25...3.31)
-set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
+cmake_minimum_required(VERSION 3.29...3.31)
+
+set(CMAKE_SKIP_TEST_ALL_DEPENDENCY FALSE)
 
 project(ZLIB VERSION 1.2.5 LANGUAGES C)
+
+if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+    message(FATAL_ERROR "In-source builds are not allowed")
+endif()
 
 if(NOT DEFINED BUILD_SHARED_LIBS)
     option(BUILD_SHARED_LIBS "Build a shared library form of zlib" ON)
@@ -37,7 +42,7 @@ check_type_size(off64_t OFF64_T)
 if(HAVE_OFF64_T)
    add_definitions(-D_LARGEFILE64_SOURCE=1)
 endif()
-set(CMAKE_REQUIRED_DEFINITIONS) # clear variable
+unset(CMAKE_REQUIRED_DEFINITIONS) # clear variable
 
 #
 # Check for fseeko
@@ -52,8 +57,9 @@ endif()
 #
 check_include_file(unistd.h Z_HAVE_UNISTD_H)
 
+set(CMAKE_DEBUG_POSTFIX "d")
+
 if(MSVC)
-    set(CMAKE_DEBUG_POSTFIX "d")
     add_definitions(-D_CRT_SECURE_NO_DEPRECATE)
     add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE)
 endif()
@@ -70,7 +76,7 @@ if(NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
   endif()
 endif()
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmakein
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmake.in
                ${CMAKE_CURRENT_BINARY_DIR}/zconf.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -131,7 +137,7 @@ if(MINGW)
                             -o ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj
                             -i ${CMAKE_CURRENT_SOURCE_DIR}/win32/zlib1.rc)
     set(ZLIB_SRCS ${ZLIB_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj)
-endif(MINGW)
+endif()
 
 add_library(zlib ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
 set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
