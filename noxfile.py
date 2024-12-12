@@ -16,6 +16,7 @@ import nox
 
 @nox.session
 def build(session: nox.Session) -> None:
+    prefix = "C:/ZLIB/1.2.5/win32-msvc-14.0"
     session.install("cmake")
     session.install("ninja")
     session.run(
@@ -29,7 +30,7 @@ def build(session: nox.Session) -> None:
         "-D",
         "CMAKE_BUILD_TYPE=Release",
         "-D",
-        "CMAKE_INSTALL_PREFIX=C:/ZLIB/1.2.5/win32-msvc-14.0",
+        f"CMAKE_INSTALL_PREFIX={prefix}",
     )
     session.run("cmake", "--build", "build", "--config", "Release")
     session.run("cmake", "--build", "build", "--config", "Release", "--target", "test")
@@ -37,7 +38,7 @@ def build(session: nox.Session) -> None:
         "cmake", "--build", "build", "--config", "Release", "--target", "package"
     )
     session.run(
-        "cmake", "--install", "build", "--config", "Release", "--prefix", "C:/ZLIB/1.2.5/win32-msvc-14.0"
+        "cmake", "--install", "build", "--config", "Release", "--prefix", prefix
     )
 
 
