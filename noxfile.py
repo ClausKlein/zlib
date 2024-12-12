@@ -28,11 +28,14 @@ def build(session: nox.Session) -> None:
         "-G",
         "Ninja",
         "-D",
+        "CMAKE_C_COMPILER=cl",
+        "-D",
         "CMAKE_BUILD_TYPE=Release",
         "-D",
         f"CMAKE_INSTALL_PREFIX={prefix}",
+        "--fresh",
     )
-    session.run("cmake", "--build", "build", "--config", "Release")
+    # session.run("cmake", "--build", "build", "--config", "Release")
     session.run("cmake", "--build", "build", "--config", "Release", "--target", "test")
     session.run(
         "cmake", "--build", "build", "--config", "Release", "--target", "package"
