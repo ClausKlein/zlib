@@ -1,7 +1,7 @@
 # CMake 3.21 or later is required for PROJECT_IS_TOP_LEVEL
 cmake_minimum_required(VERSION 3.21...3.31)
 
-project(zlib VERSION 1.3.11 LANGUAGES C)
+project(zlib VERSION 1.2.11 LANGUAGES C)
 
 # Where possible, projects should require CMake 3.21 or later and ensure policies CMP0077 and CMP0126 are set to NEW.
 # This will prevent the project from discarding values set by parent projects as non-cache variables.
@@ -72,8 +72,8 @@ if(NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR AND RENAME_ZCO
 endif()
 
 set(ZLIB_PC ${CMAKE_CURRENT_BINARY_DIR}/zlib.pc)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zlib.pc.cmakein ${ZLIB_PC} @ONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmakein ${CMAKE_CURRENT_BINARY_DIR}/zconf.h @ONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zlib.pc.cmake.in ${ZLIB_PC} @ONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/zconf.h @ONLY)
 
 #============================================================================
 # zlib
