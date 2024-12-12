@@ -1,5 +1,5 @@
 # CMake 3.21 or later is required for PROJECT_IS_TOP_LEVEL
-cmake_minimum_required(VERSION 3.21...3.30)
+cmake_minimum_required(VERSION 3.21...3.31)
 
 project(zlib VERSION 1.3.11 LANGUAGES C)
 
@@ -9,6 +9,8 @@ project(zlib VERSION 1.3.11 LANGUAGES C)
 option(BUILD_SHARED_LIBS "Enable to build a shared library(DLL) instead a static one." OFF)
 option(ZLIB_BUILD_TESTING "Enable to build the test too." ${PROJECT_IS_TOP_LEVEL})
 option(ZLIB_BUILD_EXAMPLES "Enable to build the examples too." ${PROJECT_IS_TOP_LEVEL})
+
+set(CMAKE_DEBUG_POSTFIX "d")
 
 include(CheckTypeSize)
 include(CheckFunctionExists)
@@ -51,7 +53,6 @@ endif()
 check_include_file(unistd.h Z_HAVE_UNISTD_H)
 
 if(MSVC)
-    set(CMAKE_DEBUG_POSTFIX "d")
     add_definitions(-D_CRT_SECURE_NO_DEPRECATE)
     add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -73,7 +74,6 @@ endif()
 set(ZLIB_PC ${CMAKE_CURRENT_BINARY_DIR}/zlib.pc)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zlib.pc.cmakein ${ZLIB_PC} @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmakein ${CMAKE_CURRENT_BINARY_DIR}/zconf.h @ONLY)
-# XXX include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR})
 
 #============================================================================
 # zlib
@@ -171,22 +171,22 @@ endif()
 add_library(zlib::zlib ALIAS zlib)
 # Note also that CMake's own FindZLIB.cmake module defines a slightly different
 # imported target named ZLIB::ZLIB (the upper/lowercase differences are meaningful).
-add_library(ZLIB::ZLIB ALIAS zlib)
+# TODO(CK): not clear to me! add_library(ZLIB::ZLIB ALIAS zlib)
 
 #============================================================================
-# Example binaries and ctests locatet at test subdir
-# TODO: add_subdirectory(test)
+# Example binaries and ctests are locatet at test subdir
+# TODO(CK): add_subdirectory(test)
 #============================================================================
 if(ZLIB_BUILD_TESTING)
     enable_testing()
 
     add_executable(example test/example.c)
-    target_link_libraries(example zlib)
+    target_link_libraries(example zlib::zlib)
     add_test(example example)
 
     if(HAVE_OFF64_T)
         add_executable(example64 test/example.c)
-        target_link_libraries(example64 zlib)
+	target_link_libraries(example64 zlib::zlib)
         set_target_properties(example64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
         add_test(example64 example64)
     endif()
@@ -194,11 +194,11 @@ endif()
 
 if(ZLIB_BUILD_EXAMPLES)
     add_executable(minigzip test/minigzip.c)
-    target_link_libraries(minigzip zlib)
+    target_link_libraries(minigzip zlib::zlib)
 
     if(HAVE_OFF64_T)
         add_executable(minigzip64 test/minigzip.c)
-        target_link_libraries(minigzip64 zlib)
+	target_link_libraries(minigzip64 zlib::zlib)
         set_target_properties(minigzip64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
     endif()
 endif()
