@@ -175,6 +175,9 @@ if(UNIX)
     if(NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL AIX))
         set_target_properties(zlib PROPERTIES LINK_FLAGS "-Wl,--version-script,\"${CMAKE_CURRENT_SOURCE_DIR}/zlib.map\"")
     endif()
+    if(LINUX)
+        set(CMAKE_INSTALL_LIBDIR lib64)
+    endif()
 elseif(BUILD_SHARED_LIBS AND WIN32)
     # Creates zlib1.dll when building shared library version
     set_target_properties(zlib PROPERTIES SUFFIX "1.dll")
@@ -236,16 +239,16 @@ if(NOT SKIP_INSTALL_LIBRARIES)
     target_include_directories(zlib PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
     # generate the config file that includes the exports
-    configure_package_config_file(Config.cmake.in
+    configure_package_config_file(
+        Config.cmake.in
         "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
         INSTALL_DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
         NO_SET_AND_CHECK_MACRO
         NO_CHECK_REQUIRED_COMPONENTS_MACRO
     )
-    install(FILES
-	    "${CMAKE_CURRENT_BINARY_DIR}/zlibConfigVersion.cmake"
-            "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
-	    DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
+    install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/zlibConfigVersion.cmake" "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
+        DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
     )
     install(
         TARGETS zlib
