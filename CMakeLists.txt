@@ -234,15 +234,27 @@ if(NOT SKIP_INSTALL_LIBRARIES)
     write_basic_package_version_file("zlibConfigVersion.cmake" COMPATIBILITY SameMajorVersion)
 
     target_include_directories(zlib PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-    install(FILES "${PROJECT_BINARY_DIR}/zlibConfigVersion.cmake" DESTINATION "${ZLIB_INSTALL_CMAKEDIR}")
+
+    # generate the config file that includes the exports
+    configure_package_config_file(Config.cmake.in
+        "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
+        INSTALL_DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
+        NO_SET_AND_CHECK_MACRO
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO
+    )
+    install(FILES
+	    "${CMAKE_CURRENT_BINARY_DIR}/zlibConfigVersion.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
+	    DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
+    )
     install(
         TARGETS zlib
-        EXPORT zlibConfig
+        EXPORT zlibTargets
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     )
-    install(EXPORT zlibConfig NAMESPACE zlib:: DESTINATION "${ZLIB_INSTALL_CMAKEDIR}")
+    install(EXPORT zlibTargets NAMESPACE zlib:: DESTINATION "${ZLIB_INSTALL_CMAKEDIR}")
 endif()
 if(NOT SKIP_INSTALL_HEADERS)
     install(FILES ${ZLIB_PUBLIC_HDRS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
