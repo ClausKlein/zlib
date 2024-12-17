@@ -1,11 +1,17 @@
 # CMake 3.21 or later is required for PROJECT_IS_TOP_LEVEL
 cmake_minimum_required(VERSION 3.21...3.31)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+set(CMAKE_SKIP_TEST_ALL_DEPENDENCY FALSE)
+
 project(zlib VERSION 1.2.11 LANGUAGES C)
+
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+    message(FATAL_ERROR "In-source builds are not allowed!")
+endif()
 
 # Where possible, projects should require CMake 3.21 or later and ensure policies CMP0077 and CMP0126 are set to NEW.
 # This will prevent the project from discarding values set by parent projects as non-cache variables.
-# XXX set(BUILD_SHARED_LIBS ON CACHE BOOL "Enable to build a shared library(DLL) instead a static one")
 option(BUILD_SHARED_LIBS "Enable to build a shared library(DLL) instead a static one." OFF)
 option(ZLIB_BUILD_TESTING "Enable to build the test too." ${PROJECT_IS_TOP_LEVEL})
 option(ZLIB_BUILD_EXAMPLES "Enable to build the examples too." ${PROJECT_IS_TOP_LEVEL})
@@ -110,13 +116,17 @@ set(ZLIB_SRCS
 )
 
 if(NOT MINGW AND NOT MSYS)
-    set(ZLIB_DLL_SRCS win32/zlib1.rc # If present will override custom build rule below.
+    set(ZLIB_DLL_SRCS
+        win32/zlib1.rc # If present will override custom build rule below.
     )
 endif()
 
 # parse the full version number from zlib.h and include in ZLIB_FULL_VERSION
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/zlib.h _zlib_h_contents)
 string(REGEX REPLACE ".*#define[ \t]+ZLIB_VERSION[ \t]+\"([-0-9A-Za-z.]+)\".*" "\\1" ZLIB_FULL_VERSION ${_zlib_h_contents})
+
+include(CMakePrintHelpers)
+cmake_print_variables(ZLIB_VERSION ZLIB_FULL_VERSION ZLIB_VERSION_MAJOR)
 
 # TODO: add_library without SHARED/STATIC arg picks which one to use based on
 # the variable BUILD_SHARED_LIBS. Maybe this could be simplified? (Herry Mallon)
@@ -128,8 +138,9 @@ if(BUILD_SHARED_LIBS AND MINGW)
 
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj
-        COMMAND ${CMAKE_RC_COMPILER} -D GCC_WINDRES -I ${CMAKE_CURRENT_SOURCE_DIR} -I ${CMAKE_CURRENT_BINARY_DIR} -o
-                ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj -i ${CMAKE_CURRENT_SOURCE_DIR}/win32/zlib1.rc
+        COMMAND
+            ${CMAKE_RC_COMPILER} -D GCC_WINDRES -I ${CMAKE_CURRENT_SOURCE_DIR} -I ${CMAKE_CURRENT_BINARY_DIR} -o
+            ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj -i ${CMAKE_CURRENT_SOURCE_DIR}/win32/zlib1.rc
     )
     set(ZLIB_DLL_SRCS ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj)
 endif()
@@ -143,7 +154,8 @@ else()
 endif()
 
 target_include_directories(
-    zlib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    zlib
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
 if(BUILD_SHARED_LIBS AND NOT CYGWIN)
@@ -163,6 +175,9 @@ if(UNIX)
     if(NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL AIX))
         set_target_properties(zlib PROPERTIES LINK_FLAGS "-Wl,--version-script,\"${CMAKE_CURRENT_SOURCE_DIR}/zlib.map\"")
     endif()
+    if(LINUX)
+        set(CMAKE_INSTALL_LIBDIR lib64)
+    endif()
 elseif(BUILD_SHARED_LIBS AND WIN32)
     # Creates zlib1.dll when building shared library version
     set_target_properties(zlib PROPERTIES SUFFIX "1.dll")
@@ -177,29 +192,32 @@ add_library(zlib::zlib ALIAS zlib)
 # Example binaries and ctests are locatet at test subdir
 # TODO(CK): add_subdirectory(test)
 #============================================================================
-if(ZLIB_BUILD_TESTING)
-    enable_testing()
-
+enable_testing()
+if(ZLIB_BUILD_EXAMPLES)
     add_executable(example test/example.c)
     target_link_libraries(example zlib::zlib)
-    add_test(example example)
+    add_test(NAME example COMMAND example)
 
     if(HAVE_OFF64_T)
         add_executable(example64 test/example.c)
-	target_link_libraries(example64 zlib::zlib)
-        set_target_properties(example64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-        add_test(example64 example64)
+        target_link_libraries(example64 zlib::zlib)
+        target_compile_definitions(example64 PRIVATE _FILE_OFFSET_BITS=64)
+        add_test(NAME example64 COMMAND example64)
     endif()
 endif()
 
-if(ZLIB_BUILD_EXAMPLES)
+if(ZLIB_BUILD_TESTING)
     add_executable(minigzip test/minigzip.c)
     target_link_libraries(minigzip zlib::zlib)
+    add_test(NAME minigzip COMMAND minigzip -f $<TARGET_FILE:minigzip>)
+    # add_test(NAME minigunzip COMMAND minigzip -u $<TARGET_FILE:minigzip>.gz)
 
     if(HAVE_OFF64_T)
         add_executable(minigzip64 test/minigzip.c)
-	target_link_libraries(minigzip64 zlib::zlib)
-        set_target_properties(minigzip64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+        target_link_libraries(minigzip64 zlib::zlib)
+        target_compile_definitions(minigzip64 PRIVATE _FILE_OFFSET_BITS=64)
+        add_test(NAME minigzip64 COMMAND minigzip64 -f $<TARGET_FILE:minigzip64>)
+        # add_test(NAME minigunzip64 COMMAND minigzip64 -u $<TARGET_FILE:minigzip64>.gz)
     endif()
 endif()
 
@@ -219,14 +237,27 @@ if(NOT SKIP_INSTALL_LIBRARIES)
     write_basic_package_version_file("zlibConfigVersion.cmake" COMPATIBILITY SameMajorVersion)
 
     target_include_directories(zlib PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-    install(FILES "${PROJECT_BINARY_DIR}/zlibConfigVersion.cmake" DESTINATION "${ZLIB_INSTALL_CMAKEDIR}")
-    install(TARGETS zlib
-            EXPORT zlibConfig
-            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-            ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+
+    # generate the config file that includes the exports
+    configure_package_config_file(
+        Config.cmake.in
+        "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
+        INSTALL_DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
+        NO_SET_AND_CHECK_MACRO
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO
     )
-    install(EXPORT zlibConfig NAMESPACE zlib:: DESTINATION "${ZLIB_INSTALL_CMAKEDIR}")
+    install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/zlibConfigVersion.cmake" "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
+        DESTINATION "${ZLIB_INSTALL_CMAKEDIR}"
+    )
+    install(
+        TARGETS zlib
+        EXPORT zlibTargets
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    )
+    install(EXPORT zlibTargets NAMESPACE zlib:: DESTINATION "${ZLIB_INSTALL_CMAKEDIR}")
 endif()
 if(NOT SKIP_INSTALL_HEADERS)
     install(FILES ${ZLIB_PUBLIC_HDRS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
